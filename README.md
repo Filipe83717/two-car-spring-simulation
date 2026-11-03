@@ -54,4 +54,5 @@ The current values are illustrative and are not measured experimental data.
 
 ## Authors
 
-- Add group members here.
+- Adam Bekhoev
+- Ahmed Ishaque
