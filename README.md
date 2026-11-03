@@ -1,0 +1,57 @@
+# Two-Car Spring Simulation
+
+An ELI2300 Dynamical Systems project investigating two cars
+connected by a spring and moving along a straight, horizontal track.
+
+## Model
+
+The model includes:
+- Two masses representing the cars.
+- A spring connecting the cars.
+- Velocity-dependent resistance acting on each car.
+- An external driving or braking force acting on the front car.
+
+The simulations calculate each car's displacement and velocity,
+as well as the spring extension.
+
+## Simulations
+
+| File | Description |
+| --- | --- |
+| `two_cars.m` | Constant driving force, with graphs and animation. |
+| `hard_acceleration.m` | Sudden acceleration from rest. |
+| `hard_braking.m` | Hard braking from an initial forward speed. |
+
+## How to Run
+
+1. Download or clone this repository.
+2. Open the desired `.m` file in MATLAB.
+3. Click **Run**.
+4. If prompted, select **Change Folder**.
+
+Each script runs independently and displays graphs and an animation.
+
+## Parameters
+
+The parameters near the top of each script can be changed:
+
+- `m1`, `m2`: car masses in kg.
+- `b1`, `b2`: resistance coefficients in N·s/m.
+- `k`: spring stiffness in N/m.
+- Applied force: driving or braking force in N.
+- Initial conditions: initial displacements and velocities.
+
+The current values are illustrative and are not measured experimental data.
+
+## Assumptions and Limitations
+
+- Motion is restricted to one horizontal direction.
+- The spring is linear and has negligible mass.
+- Resistance is proportional to velocity.
+- Collisions and spring deformation limits are not modelled.
+- The hard-braking simulation ends when the front car first stops.
+  It does not simulate the subsequent motion.
+
+## Authors
+
+- Add group members here.
