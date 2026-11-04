@@ -52,6 +52,8 @@ subplot(4,1,4);
 stairs(t,force,'LineWidth',1.4);
 ylabel('Force on car 1 [N]'); xlabel('Time [s]'); grid on;
 
+
+
 % Animate at 30 frames/s. A slower playback makes braking easier to see.
 playbackSpeed = 0.1;          % 0.1 = one-tenth speed; 1 = real time
 frames = (0:playbackSpeed/30:t(end)).';

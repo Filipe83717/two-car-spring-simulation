@@ -77,6 +77,7 @@ xlabel('Time [s]');
 ylabel('Spring force [N]');
 grid on;
 
+
 %% Animate the two cars
 % Uses the t, x1 and x2 values calculated above.
 
