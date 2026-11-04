@@ -2,24 +2,26 @@
 clear; clc; close all;
 
 % Illustrative parameters: replace with your measured values.
-m1 = 0.20; m2 = 0.20;       % kg
-b1 = 0.10; b2 = 0.10;       % N*s/m; resistance relative to ground
-k = 8.0;                    % N/m; spring between cars only
+m1 = 1500; m2 = 1000;       % kg
+b1 = 50; b2 = 40;       % N*s/m; resistance relative to ground
+k = 1e6;                    % N/m, coupling spring
+c = 44068;                  % N*s/m, coupling damper (modal damping ratio ~0.90)
 switchTime = 1.0;            % s
 scenario = 'Hard braking';
 braking = true;
-v0 = 1.0; % m/s initial forward speed of BOTH cars
+v0 = 20; % m/s initial forward speed of BOTH cars
 % Initial spring tension balances the trailer resistance.
 y0 = [b2*v0/k; v0; 0; v0];
 Fbefore = (b1+b2)*v0; % N, maintains steady speed before braking
-Fafter = -2.00;       % N, net applied brake force on car 1
+Fafter = -13200;       % N, net applied brake force on car 1
 endTime = 6;
 
 % State order: [x1; v1; x2; v2]. Displacements are referenced to
 % an unstretched spring, not to a common absolute position.
+coupling = @(y) k*(y(1)-y(3)) + c*(y(2)-y(4));
 rhs = @(t,y,F) [y(2); ...
-    (F-b1*y(2)-k*(y(1)-y(3)))/m1; ...
-    y(4); (k*(y(1)-y(3))-b2*y(4))/m2];
+    (F-b1*y(2)-coupling(y))/m1; ...
+    y(4); (coupling(y)-b2*y(4))/m2];
 opts = odeset('RelTol',1e-8,'AbsTol',1e-10,'MaxStep',0.01);
 
 % Solve separately at the force jump to avoid stepping across it.
@@ -37,7 +39,7 @@ force(t >= switchTime) = Fafter;
 x1 = y(:,1); v1 = y(:,2); x2 = y(:,3); v2 = y(:,4);
 extension = x1-x2;
 
-figure('Name',[scenario ' - graphs'],'Color','w');
+graphFigure = figure('Name',[scenario ' - graphs'],'Color','w');
 subplot(4,1,1);
 plot(t,x1,'b',t,x2,'r--','LineWidth',1.4);
 ylabel('x [m]'); legend('Car 1','Car 2','Location','best'); grid on;
@@ -53,6 +55,21 @@ stairs(t,force,'LineWidth',1.4);
 ylabel('Force on car 1 [N]'); xlabel('Time [s]'); grid on;
 
 
+
+% Save the plots and all solver samples alongside this script.
+[folder,name] = fileparts(mfilename('fullpath'));
+out = fullfile(folder,'results');
+if ~isfolder(out), mkdir(out); end
+exportgraphics(graphFigure,fullfile(out,[name '_graphs.pdf']),'ContentType','vector');
+springForce = k*extension;
+damperForce = c*(v1-v2);
+data = table(t,x1,x2,v1,v2,extension,force,springForce,damperForce,springForce+damperForce, ...
+    'VariableNames',{'Time_s','X1_m','X2_m','V1_m_s','V2_m_s','Extension_m', ...
+                     'Applied_N','Spring_N','Damper_N','Coupling_N'});
+writetable(data,fullfile(out,[name '_values.csv']));
+valuesPDF = fullfile(out,[name '_values.pdf']);
+writeValuesPDF(valuesPDF,data);
+fprintf('Results saved in %s\n',out);
 
 % Animate at 30 frames/s. A slower playback makes braking easier to see.
 playbackSpeed = 0.1;          % 0.1 = one-tenth speed; 1 = real time
@@ -101,13 +118,13 @@ for j = 1:numel(frames)
         phase = scenario;
     end
     set(arrow,'XData',p1(j)+carLength/2,'YData',0.16, ...
-        'UData',0.25*appliedForce,'VData',0);
+        'UData',0.15*sign(appliedForce),'VData',0);
     title(ax,sprintf('%s | t = %.2f s | F = %.2f N\nv1 = %.2f, v2 = %.2f m/s | one-tenth-speed playback', ...
         phase,frames(j),appliedForce,yFrames(j,2),yFrames(j,4)));
     drawnow;
 end
 if braking && isgraphics(fig) && t(end) < endTime
-    title(ax,sprintf('Front car has stopped at t = %.3f s\nTrailer still moving at %.3f m/s; simulation ends here', ...
+    title(ax,sprintf('Front car has stopped at t = %.3f s\nTrailer velocity = %.5f m/s; simulation ends here', ...
         t(end),v2(end)));
 end
 
@@ -118,3 +135,55 @@ function [value,isterminal,direction] = frontCarStops(~,y)
     isterminal = 1;
     direction = -1;
 end
+function writeValuesPDF(destination,data)
+    [~,reportName] = fileparts(destination);
+    % Plain ASCII text on landscape A4 pages. Offsets are byte positions.
+    rowsPerPage = 43;
+    pages = ceil(height(data)/rowsPerPage);
+    objects = cell(3+2*pages,1);
+    objects{1} = '<< /Type /Catalog /Pages 2 0 R >>';
+    pageIds = 4:2:(3+2*pages);
+    objects{2} = sprintf('<< /Type /Pages /Count %d /Kids [%s] >>', ...
+        pages,sprintf('%d 0 R ',pageIds));
+    objects{3} = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>';
+    for page = 1:pages
+        first = 1+(page-1)*rowsPerPage;
+        last = min(first+rowsPerPage-1,height(data));
+        id = pageIds(page);
+        objects{id} = sprintf(['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] ' ...
+            '/Resources << /Font << /F1 3 0 R >> >> /Contents %d 0 R >>'],id+1);
+        titleLine = sprintf('%s | samples %d-%d | page %d/%d',reportName,first,last,page,pages);
+        headers = sprintf('%14s',data.Properties.VariableNames{:});
+        lines = {['BT /F1 9 Tf 12 TL 24 565 Td (' titleLine ') Tj'], ...
+            ['T* (' headers ') Tj']};
+        for row = first:last
+            lines{end+1} = ['T* (' sprintf('%14.6g',data{row,:}) ') Tj'];
+        end
+        stream = strjoin([lines,{'ET'}],newline);
+        objects{id+1} = sprintf('<< /Length %d >>\nstream\n%s\nendstream',numel(stream),stream);
+    end
+    tmp = [tempname(fileparts(destination)) '.pdf'];
+    fid = fopen(tmp,'wb');
+    assert(fid ~= -1,'Could not open temporary PDF.');
+    try
+        fprintf(fid,'%%PDF-1.4\n');
+        offsets = zeros(numel(objects),1);
+        for id = 1:numel(objects)
+            offsets(id) = ftell(fid);
+            fprintf(fid,'%d 0 obj\n%s\nendobj\n',id,objects{id});
+        end
+        startxref = ftell(fid);
+        fprintf(fid,'xref\n0 %d\n0000000000 65535 f \n',numel(objects)+1);
+        fprintf(fid,'%010d 00000 n \n',offsets);
+        fprintf(fid,'trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n', ...
+            numel(objects)+1,startxref);
+        fclose(fid);
+        fid = -1;
+        movefile(tmp,destination,'f');
+    catch err
+        if fid ~= -1, fclose(fid); end
+        if isfile(tmp), delete(tmp); end
+        rethrow(err);
+    end
+end
+

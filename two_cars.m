@@ -10,16 +10,17 @@ clc;
 close all;
 
 %% Parameters — replace with your measured values
-m1 = 0.20;       % Mass of car 1 [kg]
-m2 = 0.20;       % Mass of car 2 [kg]
+m1 = 1500;       % Mass of car 1 [kg]
+m2 = 1000;       % Mass of car 2 [kg]
 
-b1 = 0.10;       % Resistance coefficient for car 1 [N*s/m]
-b2 = 0.10;       % Resistance coefficient for car 2 [N*s/m]
+b1 = 50;       % Resistance coefficient for car 1 [N*s/m]
+b2 = 40;       % Resistance coefficient for car 2 [N*s/m]
 
-k = 2.0;         % Spring stiffness [N/m]
+k = 1e6;         % Spring stiffness [N/m]
 
-%% Applied force
-F0 = 0.10;       % Constant force on car 1 [N]
+c  = 0;     % Koblingsdemper [N*s/m], ingen koblingsdemping ved c = 0
+%% Applied for  e
+F0 = 1800;       % Constant force on car 1 [N]
 F = @(t) F0;
 
 %% Initial conditions
@@ -34,9 +35,9 @@ y0 = [0; 0; 0; 0];
 
 dydt = @(t,y) [
     y(2);
-    (F(t) - b1*y(2) - k*(y(1)-y(3))) / m1;
+    (F(t) - b1*y(2) - (k*(y(1)-y(3)) + c*(y(2)-y(4)))) / m1;
     y(4);
-    (k*(y(1)-y(3)) - b2*y(4)) / m2
+    ((k*(y(1)-y(3)) + c*(y(2)-y(4))) - b2*y(4)) / m2
 ];
 
 %% Solve from 0 to 10 seconds
@@ -56,7 +57,7 @@ extension = x1 - x2;
 spring_force = k * extension;
 
 %% Plot results
-figure;
+graphFigure = figure;
 
 subplot(3,1,1);
 plot(t, x1, 'b', t, x2, 'r--', 'LineWidth', 1.5);
@@ -77,6 +78,16 @@ xlabel('Time [s]');
 ylabel('Spring force [N]');
 grid on;
 
+
+%% Export graph PDF, numeric PDF and CSV
+[folder, name] = fileparts(mfilename('fullpath'));
+out = fullfile(folder, 'results');
+if ~isfolder(out), mkdir(out); end
+values = table(t, x1, x2, v1, v2, extension, spring_force, ...
+    'VariableNames', {'Time_s','X1_m','X2_m','V1_m_s','V2_m_s','Extension_m','SpringForce_N'});
+writetable(values, fullfile(out, [name '_values.csv']));
+writeValuesPDF(fullfile(out, [name '_values.pdf']), values);
+exportgraphics(graphFigure, fullfile(out, [name '_graphs.pdf']), 'ContentType', 'vector');
 
 %% Animate the two cars
 % Uses the t, x1 and x2 values calculated above.
@@ -161,3 +172,55 @@ for j = 1:frameStep:length(t)
 
     drawnow;
 end
+function writeValuesPDF(destination,data)
+    [~,reportName] = fileparts(destination);
+    % Plain ASCII text on landscape A4 pages. Offsets are byte positions.
+    rowsPerPage = 43;
+    pages = ceil(height(data)/rowsPerPage);
+    objects = cell(3+2*pages,1);
+    objects{1} = '<< /Type /Catalog /Pages 2 0 R >>';
+    pageIds = 4:2:(3+2*pages);
+    objects{2} = sprintf('<< /Type /Pages /Count %d /Kids [%s] >>', ...
+        pages,sprintf('%d 0 R ',pageIds));
+    objects{3} = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>';
+    for page = 1:pages
+        first = 1+(page-1)*rowsPerPage;
+        last = min(first+rowsPerPage-1,height(data));
+        id = pageIds(page);
+        objects{id} = sprintf(['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] ' ...
+            '/Resources << /Font << /F1 3 0 R >> >> /Contents %d 0 R >>'],id+1);
+        titleLine = sprintf('%s | samples %d-%d | page %d/%d',reportName,first,last,page,pages);
+        headers = sprintf('%14s',data.Properties.VariableNames{:});
+        lines = {['BT /F1 9 Tf 12 TL 24 565 Td (' titleLine ') Tj'], ...
+            ['T* (' headers ') Tj']};
+        for row = first:last
+            lines{end+1} = ['T* (' sprintf('%14.6g',data{row,:}) ') Tj'];
+        end
+        stream = strjoin([lines,{'ET'}],newline);
+        objects{id+1} = sprintf('<< /Length %d >>\nstream\n%s\nendstream',numel(stream),stream);
+    end
+    tmp = [tempname(fileparts(destination)) '.pdf'];
+    fid = fopen(tmp,'wb');
+    assert(fid ~= -1,'Could not open temporary PDF.');
+    try
+        fprintf(fid,'%%PDF-1.4\n');
+        offsets = zeros(numel(objects),1);
+        for id = 1:numel(objects)
+            offsets(id) = ftell(fid);
+            fprintf(fid,'%d 0 obj\n%s\nendobj\n',id,objects{id});
+        end
+        startxref = ftell(fid);
+        fprintf(fid,'xref\n0 %d\n0000000000 65535 f \n',numel(objects)+1);
+        fprintf(fid,'%010d 00000 n \n',offsets);
+        fprintf(fid,'trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n', ...
+            numel(objects)+1,startxref);
+        fclose(fid);
+        fid = -1;
+        movefile(tmp,destination,'f');
+    catch err
+        if fid ~= -1, fclose(fid); end
+        if isfile(tmp), delete(tmp); end
+        rethrow(err);
+    end
+end
+
