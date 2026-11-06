@@ -1,9 +1,4 @@
-%% No applied force after release
-F = @(t) 0;
 
-%% Start at rest with the spring stretched by 5 cm
-% x1 - x2 = 0.05 m
-y0 = [0.05; 0; 0; 0];
 
 clear;
 clc;
@@ -18,7 +13,7 @@ b2 = 40;       % Resistance coefficient for car 2 [N*s/m]
 
 k = 1e6;         % Spring stiffness [N/m]
 
-c  = 0;     % Koblingsdemper [N*s/m], ingen koblingsdemping ved c = 0
+c  = 44068;     % Koblingsdemper [N*s/m], ingen koblingsdemping ved c = 0
 %% Applied for  e
 F0 = 1800;       % Constant force on car 1 [N]
 F = @(t) F0;
@@ -52,6 +47,12 @@ v1 = y(:,2);
 
 x2 = y(:,3);
 v2 = y(:,4);
+%% Simulated displacements at t = 5 s
+[~, idx5] = min(abs(t - 5));
+
+fprintf('\nTime:    %.2f s\n', t(idx5));
+fprintf('Car:     %.9f m\n', x1(idx5));
+fprintf('Trailer: %.9f m\n', x2(idx5));
 
 extension = x1 - x2;
 spring_force = k * extension;
@@ -63,7 +64,7 @@ subplot(3,1,1);
 plot(t, x1, 'b', t, x2, 'r--', 'LineWidth', 1.5);
 ylabel('Displacement [m]');
 legend('Car 1', 'Car 2', 'Location', 'best');
-title('Two cars connected by a spring');
+title('Car and trailer connected by a spring and damper');
 grid on;
 
 subplot(3,1,2);
