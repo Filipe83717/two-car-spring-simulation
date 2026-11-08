@@ -66,7 +66,7 @@ layout = tiledlayout(graphFigure, 4, 1, ...
 
 % Applied driving force: step from 0 to F0 at t = 0
 nexttile(layout);
-plot([0 0 t(end)], [0 F0 F0], 'k-', 'LineWidth', 1.5);
+plot([0 0 t(end)], [0 F0 F0], 'Color', [0.85 0.33 0.10], 'LineWidth', 2.5);
 ylabel('Driving force [N]');
 ylim([0 1.15*F0]);
 xlim([0 t(end)]);
@@ -90,7 +90,7 @@ grid on;
 
 % Spring force
 nexttile(layout);
-plot(t, spring_force, 'k-', 'LineWidth', 1.5);
+plot(t, spring_force, 'Color', [0.85 0.33 0.10], 'LineWidth', 2.5);
 ylabel('Spring force [N]');
 xlabel('Time [s]');
 xlim([0 t(end)]);
