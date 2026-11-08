@@ -60,23 +60,41 @@ spring_force = k * extension;
 %% Plot results
 graphFigure = figure;
 
-subplot(3,1,1);
-plot(t, x1, 'b', t, x2, 'r--', 'LineWidth', 1.5);
+%% Plot results
+graphFigure = figure('Color', 'w', 'Position', [100 100 850 800]);
+layout = tiledlayout(graphFigure, 4, 1, ...
+    'TileSpacing', 'compact', 'Padding', 'compact');
+
+% Applied driving force: step from 0 to F0 at t = 0
+nexttile(layout);
+plot([0 0 t(end)], [0 F0 F0], 'k-', 'LineWidth', 1.5);
+ylabel('Driving force [N]');
+ylim([0 1.15*F0]);
+xlim([0 t(end)]);
+grid on;
+
+% Displacements
+nexttile(layout);
+plot(t, x1, 'b-', t, x2, 'r--', 'LineWidth', 1.5);
 ylabel('Displacement [m]');
-legend('Car 1', 'Car 2', 'Location', 'best');
-title('Car and trailer connected by a spring and damper');
+legend('Car', 'Trailer', 'Location', 'best');
+xlim([0 t(end)]);
 grid on;
 
-subplot(3,1,2);
-plot(t, v1, 'b', t, v2, 'r--', 'LineWidth', 1.5);
+% Velocities
+nexttile(layout);
+plot(t, v1, 'b-', t, v2, 'r--', 'LineWidth', 1.5);
 ylabel('Velocity [m/s]');
-legend('Car 1', 'Car 2', 'Location', 'best');
+legend('Car', 'Trailer', 'Location', 'best');
+xlim([0 t(end)]);
 grid on;
 
-subplot(3,1,3);
-plot(t, spring_force, 'k', 'LineWidth', 1.5);
-xlabel('Time [s]');
+% Spring force
+nexttile(layout);
+plot(t, spring_force, 'k-', 'LineWidth', 1.5);
 ylabel('Spring force [N]');
+xlabel('Time [s]');
+xlim([0 t(end)]);
 grid on;
 
 
