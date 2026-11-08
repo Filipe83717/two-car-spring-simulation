@@ -57,8 +57,7 @@ fprintf('Trailer: %.9f m\n', x2(idx5));
 extension = x1 - x2;
 spring_force = k * extension;
 
-%% Plot results
-graphFigure = figure;
+
 
 %% Plot results
 graphFigure = figure('Color', 'w', 'Position', [100 100 850 800]);
