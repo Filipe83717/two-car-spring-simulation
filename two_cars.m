@@ -57,7 +57,34 @@ fprintf('Trailer: %.9f m\n', x2(idx5));
 extension = x1 - x2;
 spring_force = k * extension;
 
+%% Compare nominal and reduced spring stiffness
+kSoft = 0.8 * k;
 
+couplingSoft = @(y) kSoft*(y(1)-y(3)) + c*(y(2)-y(4));
+
+dydtSoft = @(t,y) [
+    y(2);
+    (F(t) - b1*y(2) - couplingSoft(y)) / m1;
+    y(4);
+    (couplingSoft(y) - b2*y(4)) / m2
+];
+
+[tSoft, ySoft] = ode45(dydtSoft, tspan, y0, options);
+
+extensionMM = 1000 * extension;
+extensionSoftMM = 1000 * (ySoft(:,1) - ySoft(:,3));
+
+stiffnessFigure = figure('Color', 'w');
+plot(t, extensionMM, 'b-', tSoft, extensionSoftMM, 'r--', ...
+    'LineWidth', 1.8);
+xlabel('Time [s]');
+ylabel('Spring extension [mm]');
+legend('Nominal stiffness', '20% lower stiffness', 'Location', 'best');
+grid on;
+
+[~, idx5] = min(abs(t - 5));
+fprintf('Nominal extension at 5 s: %.3f mm\n', extensionMM(idx5));
+fprintf('Reduced-stiffness extension at 5 s: %.3f mm\n', extensionSoftMM(idx5));
 
 %% Plot results
 graphFigure = figure('Color', 'w', 'Position', [100 100 850 800]);
@@ -106,7 +133,8 @@ values = table(t, x1, x2, v1, v2, extension, spring_force, ...
 writetable(values, fullfile(out, [name '_values.csv']));
 writeValuesPDF(fullfile(out, [name '_values.pdf']), values);
 exportgraphics(graphFigure, fullfile(out, [name '_graphs.pdf']), 'ContentType', 'vector');
-
+exportgraphics(stiffnessFigure, fullfile(out, 'stiffness_comparison.pdf'), ...
+    'ContentType', 'vector');
 %% Animate the two cars
 % Uses the t, x1 and x2 values calculated above.
 
